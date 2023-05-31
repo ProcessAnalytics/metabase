@@ -347,7 +347,7 @@ export function shouldOpenInBlankWindow(
   {
     event = window.event,
     // always open in new window
-    blank = false,
+    blank = true,
     // open in new window if command-click
     blankOnMetaOrCtrlKey = true,
     // open in new window for different origin
