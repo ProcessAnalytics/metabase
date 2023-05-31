@@ -555,14 +555,12 @@ class NativeQueryEditor extends Component {
                 setParameterIndex={this.setParameterIndex}
               />
             )}
-            {query.hasWritePermission() && this.props.setIsNativeEditorOpen && (
-              <VisibilityToggler
-                className={!isNativeEditorOpen ? "hide sm-show" : ""}
-                isOpen={isNativeEditorOpen}
-                readOnly={!!readOnly}
-                toggleEditor={this.toggleEditor}
-              />
-            )}
+            <VisibilityToggler
+              className={!isNativeEditorOpen ? "hide sm-show" : ""}
+              isOpen={isNativeEditorOpen}
+              readOnly={!!readOnly}
+              toggleEditor={this.toggleEditor}
+            />
           </div>
         )}
         <ResizableBox
