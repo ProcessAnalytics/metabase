@@ -66,10 +66,10 @@ class AddSeriesModal extends Component {
     );
   };
 
-  handleRemoveSeries(card) {
+  handleRemoveSeries = (card) => {
     this.setState({ series: this.state.series.filter(c => c.id !== card.id) });
     MetabaseAnalytics.trackStructEvent("Dashboard", "Remove Series");
-  }
+  };
 
   handleDone = () => {
     this.props.setDashCardAttributes({
