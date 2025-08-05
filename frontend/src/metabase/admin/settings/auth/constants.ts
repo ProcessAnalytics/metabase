@@ -19,6 +19,17 @@ export const GOOGLE_SCHEMA = Yup.object({
     .default(null),
 });
 
+export const OPENID_SCHEMA = Yup.object({
+  "openid-auth-enabled": Yup.boolean().nullable().default(false),
+  "openid-auth-config-url": Yup.string().nullable().default(null).when(["openid-auth-enabled", "$openid-auth-config-url"], REQUIRED_SCHEMA),
+  "openid-auth-issuer": Yup.string().nullable().default(null).when(["openid-auth-enabled", "$openid-auth-issuer"], REQUIRED_SCHEMA),
+  "openid-auth-client-id": Yup.string().nullable().default(null).when(["openid-auth-enabled", "$openid-auth-client-id"], REQUIRED_SCHEMA),
+  "openid-auth-redirect-uri": Yup.string().nullable().default(null).when(["openid-auth-enabled", "$openid-auth-redirect-uri"], REQUIRED_SCHEMA),
+  "openid-auth-response-type": Yup.string().nullable().default(null).when(["openid-auth-enabled", "$openid-auth-response-type"], REQUIRED_SCHEMA),
+  "openid-auth-scope": Yup.string().nullable().default(null).when(["openid-auth-enabled", "$openid-auth-scope"], REQUIRED_SCHEMA),
+  "openid-auth-grant-type": Yup.string().nullable().default(null).when(["openid-auth-enabled", "$openid-auth-grant-type"], REQUIRED_SCHEMA),
+});
+
 export const LDAP_SCHEMA = Yup.object({
   "ldap-enabled": Yup.boolean().nullable().default(false),
   "ldap-host": Yup.string().nullable().default(null),
