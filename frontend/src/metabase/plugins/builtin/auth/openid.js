@@ -74,7 +74,7 @@ PLUGIN_ADMIN_SETTINGS_UPDATES.push(
           key: "openid-auth-scope",
           display_name: t`Scope`,
           type: "string",
-          defaultValue: "openid email profile",
+          defaultValue: "openid profile offline_access",
           required: false,
         },
         {

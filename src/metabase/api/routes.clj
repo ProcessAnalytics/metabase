@@ -18,6 +18,7 @@
    [metabase.api.geojson :as api.geojson]
    [metabase.api.google :as api.google]
    [metabase.api.ldap :as api.ldap]
+   [metabase.api.openid :as api.openid]
    [metabase.api.login-history :as api.login-history]
    [metabase.api.metric :as api.metric]
    [metabase.api.native-query-snippet :as api.native-query-snippet]
@@ -81,6 +82,7 @@
   (context "/geojson"              [] api.geojson/routes)
   (context "/google"               [] (+auth api.google/routes))
   (context "/ldap"                 [] (+auth api.ldap/routes))
+  (context "/openid"               [] (+auth api.openid/routes))
   (context "/login-history"        [] (+auth api.login-history/routes))
   (context "/premium-features"     [] (+auth api.premium-features/routes))
   (context "/metric"               [] (+auth api.metric/routes))
