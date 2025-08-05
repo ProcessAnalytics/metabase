@@ -229,6 +229,8 @@ export interface Settings {
   version: Version;
   "version-info": VersionInfo | null;
   "version-info-last-checked": string | null;
+  "openid-auth-configured?": boolean;
+  "openid-auth-enabled": boolean;
 }
 
 export type SettingKey = keyof Settings;
