@@ -9,6 +9,7 @@ import {
   EmailApi,
   SlackApi,
   LdapApi,
+  OpenidApi,
   GoogleApi,
 } from "metabase/services";
 import { refreshSiteSettings } from "metabase/redux/settings";
@@ -140,6 +141,19 @@ export const updateLdapSettings = createThunkAction(
   function (settings) {
     return async function (dispatch) {
       const result = await LdapApi.updateSettings(settings);
+      await dispatch(reloadSettings());
+      return result;
+    };
+  },
+);
+
+export const UPDATE_OPENID_SETTINGS =
+  "metabase/admin/settings/UPDATE_OPENID_SETTINGS";
+export const updateOpenidSettings = createThunkAction(
+  UPDATE_OPENID_SETTINGS,
+  function (settings) {
+    return async function (dispatch) {
+      const result = await OpenidApi.updateSettings(settings);
       await dispatch(reloadSettings());
       return result;
     };
