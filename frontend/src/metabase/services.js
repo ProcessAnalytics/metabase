@@ -216,6 +216,10 @@ export const LdapApi = {
   updateSettings: PUT("/api/ldap/settings"),
 };
 
+export const OpenidApi = {
+  updateSettings: PUT("/api/openid/settings"),
+};
+
 export const GoogleApi = {
   updateSettings: PUT("/api/google/settings"),
 };
