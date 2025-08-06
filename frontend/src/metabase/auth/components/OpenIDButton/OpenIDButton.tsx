@@ -26,8 +26,8 @@ const OpenidButton = ({
         setIsLoading(true);
 
         // Call the initiate endpoint to get authorization URL
-        const response = await fetch("/api/openid/initiate", {
-          method: "POST",
+        const response = await fetch("/api/openid/auth_url", {
+          method: "GET",
           headers: {
             "Content-Type": "application/json",
           },
