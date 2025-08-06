@@ -73,7 +73,7 @@ export const loginOpenID = createThunkAction(
     async (dispatch: any) => {
       await SessionApi.createWithOpenIDAuth({ token });
       await dispatch(refreshSession());
-      // TODO: Add OpenID tracking
+      trackLogin();
 
       dispatch(push(redirectUrl));
     },

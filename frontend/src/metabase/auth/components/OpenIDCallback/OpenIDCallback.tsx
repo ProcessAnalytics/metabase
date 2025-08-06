@@ -47,15 +47,12 @@ const OpenIDCallback = ({ location, router }: OpenIDCallbackProps) => {
           throw new Error(errorData.message || t`Failed to process OpenID callback`);
         }
 
-        // Получаем данные ответа
         const data = await response.json();
 
-        // Сохраняем access_token в sessionStorage для использования в заголовках
         if (data.access_token) {
           sessionStorage.setItem("openid_access_token", data.access_token);
         }
 
-        // Перенаправляем на главную страницу или сохраненный URL
         const returnUrl = sessionStorage.getItem("openid_return_url") || "/";
         sessionStorage.removeItem("openid_return_url");
         router.push(returnUrl);
