@@ -95,7 +95,7 @@
   [^String token]
   (try
     (let [[header] (str/split token #"\.")]
-      (json/parse-string (codec/bytes->str (codec/base64-decode header)) keyword))
+      (json/parse-string (String. (codec/base64-decode header)) keyword))
     (catch Exception e
       (log/error e "Ошибка при извлечении заголовка JWT")
       nil)))
