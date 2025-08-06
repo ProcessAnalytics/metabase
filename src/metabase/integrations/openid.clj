@@ -193,6 +193,26 @@
    :scope         (openid-auth-scope)
    :grant-type    (openid-auth-grant-type)})
 
+(defn fetch-openid-discovery-config
+  "Получает конфигурацию OpenID Connect из discovery endpoint и возвращает ключевые параметры.
+   Возвращает словарь с ключами: :issuer, :id_token_signing_alg_values_supported, :jwks_uri"
+  []
+  (try
+    (let [config-url (openid-auth-config-url)]
+      (when-not config-url
+        (throw (ex-info (tru "OpenID config URL не настроен") {:status-code 400})))
+
+      (log/info "Получение OpenID discovery конфигурации из:" config-url)
+      (let [config (fetch-openid-configuration config-url)]
+        {:issuer                              (:issuer config)
+         :id_token_signing_alg_values_supported (:id_token_signing_alg_values_supported config)
+         :jwks_uri                            (:jwks_uri config)}))
+    (catch Exception e
+      (log/error e "Ошибка при получении OpenID discovery конфигурации")
+      (throw (ex-info (tru "Не удалось получить OpenID discovery конфигурацию: {0}" (.getMessage e))
+                      {:status-code 500
+                       :error       e})))))
+
 ;;; ======================================= User Management =======================================
 
 

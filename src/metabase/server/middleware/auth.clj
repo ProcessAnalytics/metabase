@@ -2,10 +2,16 @@
   "Middleware related to enforcing authentication/API keys (when applicable). Unlike most other middleware most of this
   is not used as part of the normal `app`; it is instead added selectively to appropriate routes."
   (:require
+   [buddy.sign.jwt :as jwt]
+   [cheshire.core :as json]
+   [clj-http.client :as http]
    [clojure.string :as str]
+   [metabase.integrations.openid :as openid]
    [metabase.models.setting :refer [defsetting]]
    [metabase.server.middleware.util :as mw.util]
-   [metabase.util.i18n :refer [deferred-trs]]))
+   [metabase.util.i18n :refer [deferred-trs]]
+   [metabase.util.log :as log]
+   [ring.util.codec :as codec]))
 
 (def ^:private ^:const ^String metabase-api-key-header "x-metabase-apikey")
 
@@ -65,3 +71,114 @@
 
           :else
           (respond mw.util/response-forbidden))))
+
+(defn- fetch-jwks
+  "Получает JWKS (JSON Web Key Set) из указанного URL"
+  [jwks-uri]
+  (try
+    (log/info "Получение JWKS из:" jwks-uri)
+    (let [response (http/get jwks-uri
+                             {:throw-exceptions false
+                              :insecure?        true
+                              :accept           :json})]
+      (if (= 200 (:status response))
+        (json/parse-string (:body response) true)
+        (do
+          (log/error "Ошибка получения JWKS, статус:" (:status response))
+          (throw (ex-info "Не удалось получить JWKS" {:status (:status response)})))))
+    (catch Exception e
+      (log/error e "Исключение при получении JWKS из:" jwks-uri)
+      (throw e))))
+
+(defn- jwt-header
+  "Извлекает заголовок JWT токена"
+  [^String token]
+  (try
+    (let [[header] (str/split token #"\.")]
+      (json/parse-string (codec/bytes->str (codec/base64-decode header)) keyword))
+    (catch Exception e
+      (log/error e "Ошибка при извлечении заголовка JWT")
+      nil)))
+
+(defn- get-signing-key-from-jwt
+  "Получает подписывающий ключ из JWKS на основе JWT токена (аналогично Python jwt.JWKClient.get_signing_key_from_jwt)"
+  [token jwks-uri]
+  (try
+    (let [jwks (fetch-jwks jwks-uri)
+          keys (:keys jwks)
+          header (jwt-header token)
+          kid (:kid header)]
+
+      (log/info "Получено" (count keys) "ключей из JWKS")
+      (log/info "Key ID из JWT заголовка:" kid)
+
+      (if kid
+        (let [signing-key (first (filter #(= (:kid %) kid) keys))]
+          (if signing-key
+            (do
+              (log/info "Найден подписывающий ключ для kid:" kid)
+              {:valid true
+               :token token
+               :jwks-uri jwks-uri
+               :signing-key signing-key
+               :kid kid})
+            (do
+              (log/error "Ключ с kid" kid "не найден в JWKS")
+              {:valid false
+               :error (str "Ключ с kid " kid " не найден в JWKS")
+               :token token
+               :jwks-uri jwks-uri
+               :kid kid})))
+        (do
+          (log/error "JWT заголовок не содержит kid")
+          {:valid false
+           :error "JWT заголовок не содержит kid"
+           :token token
+           :jwks-uri jwks-uri})))
+    (catch Exception e
+      (log/error e "Ошибка при получении подписывающего ключа из JWT")
+      {:valid false
+       :error (.getMessage e)
+       :token token
+       :jwks-uri jwks-uri})))
+
+(defn- validate-jwt-token
+  "Валидирует JWT токен используя JWKS"
+  [token jwks-uri]
+  (let [result (get-signing-key-from-jwt token jwks-uri)]
+    (if (:valid result)
+      (do
+        (log/info "JWT токен валиден, подписывающий ключ найден")
+        result)
+      (do
+        (log/error "JWT токен невалиден:" (:error result))
+        result))))
+
+(defn- wrap-openid-token* [{:keys [headers], :as request}]
+  (if-let [auth-header (get headers "authorization")]
+    (let [token (when (str/starts-with? auth-header "Bearer ")
+                  (subs auth-header 7))]
+      (if token
+        (do
+          (log/infof "Получен OpenID токен: %s" token)
+
+          ;; Получаем конфигурацию OpenID и валидируем токен
+          (try
+            (let [discovery-config (openid/fetch-openid-discovery-config)
+                  jwks-uri (:jwks_uri discovery-config)]
+              (when jwks-uri
+                (let [validation-result (validate-jwt-token token jwks-uri)]
+                  (log/info "Результат валидации JWT:" validation-result))))
+            (catch Exception e
+              (log/error e "Ошибка при получении OpenID конфигурации для валидации токена")))
+
+          (assoc request :openid-token token))
+        request))
+    request))
+
+(defn wrap-openid-token
+  "Middleware that извлекает OpenID токен из заголовка Authorization и логирует его.
+  Токен должен быть в формате 'Bearer <token>'."
+  [handler]
+  (fn [request respond raise]
+    (handler (wrap-openid-token* request) respond raise)))
