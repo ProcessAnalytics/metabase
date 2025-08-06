@@ -66,6 +66,19 @@ export const loginGoogle = createThunkAction(
     },
 );
 
+export const LOGIN_OPENID = "metabase/auth/LOGIN_OPENID";
+export const loginOpenID = createThunkAction(
+  LOGIN_OPENID,
+  (token: string, redirectUrl = "/") =>
+    async (dispatch: any) => {
+      await SessionApi.createWithOpenIDAuth({ token });
+      await dispatch(refreshSession());
+      // TODO: Add OpenID tracking
+
+      dispatch(push(redirectUrl));
+    },
+);
+
 export const LOGOUT = "metabase/auth/LOGOUT";
 export const logout = createThunkAction(LOGOUT, (redirectUrl: string) => {
   return async (dispatch: any) => {

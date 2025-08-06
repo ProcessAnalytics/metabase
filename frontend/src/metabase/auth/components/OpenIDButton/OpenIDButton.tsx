@@ -40,8 +40,11 @@ const OpenidButton = ({
 
         const data = await response.json();
 
-        // Store state parameter for CSRF protection
-        sessionStorage.setItem("openid_state", data.state);
+        // Store current URL for return after authentication
+        const returnUrl = window.location.pathname + window.location.search;
+        if (returnUrl !== "/auth/login" && returnUrl !== "/auth/callback") {
+          sessionStorage.setItem("openid_return_url", returnUrl);
+        }
 
         // Redirect to the OpenID provider
         window.location.href = data.authorization_url;

@@ -2,12 +2,26 @@ import { t } from "ttag";
 import { updateIn } from "icepick";
 
 import {
+  PLUGIN_AUTH_PROVIDERS,
   PLUGIN_ADMIN_SETTINGS_UPDATES,
   PLUGIN_IS_PASSWORD_USER,
 } from "metabase/plugins";
 
+
+
 import SettingsOpenidForm from "metabase/admin/settings/components/SettingsOpenidForm";
 import OpenidAuthCard from "metabase/admin/settings/auth/containers/OpenIDAuthCard";
+
+PLUGIN_AUTH_PROVIDERS.push(providers => {
+  const openidProvider = {
+    name: "openid",
+    // circular dependencies
+    Button: require("metabase/auth/containers/OpenIDButton").default,
+  };
+
+  // Always register the provider, but let the component handle the enabled state
+  return [openidProvider, ...providers];
+});
 
 PLUGIN_ADMIN_SETTINGS_UPDATES.push(
   sections =>

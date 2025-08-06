@@ -93,6 +93,12 @@ export class Api extends EventEmitter {
           headers[ANTI_CSRF_HEADER] = ANTI_CSRF_TOKEN;
         }
 
+        // Add OpenID access token if available
+        const openidAccessToken = sessionStorage.getItem("openid_access_token");
+        if (openidAccessToken) {
+          headers["Authorization"] = `Bearer ${openidAccessToken}`;
+        }
+
         let body;
         if (options.hasBody) {
           body = JSON.stringify(
