@@ -82,7 +82,7 @@
   (context "/geojson"              [] api.geojson/routes)
   (context "/google"               [] (+auth api.google/routes))
   (context "/ldap"                 [] (+auth api.ldap/routes))
-  (context "/openid"               [] (+auth api.openid/routes))
+  (context "/openid"               [] api.openid/routes)
   (context "/login-history"        [] (+auth api.login-history/routes))
   (context "/premium-features"     [] (+auth api.premium-features/routes))
   (context "/metric"               [] (+auth api.metric/routes))
