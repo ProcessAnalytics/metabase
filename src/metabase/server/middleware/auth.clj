@@ -3,7 +3,6 @@
   is not used as part of the normal `app`; it is instead added selectively to appropriate routes."
   (:require
    [buddy.sign.jwt :as jwt]
-   [buddy.sign.jwt.verify :as jwt-verify]
    [cheshire.core :as json]
    [clj-http.client :as http]
    [clojure.string :as str]
@@ -11,8 +10,7 @@
    [metabase.models.setting :refer [defsetting]]
    [metabase.server.middleware.util :as mw.util]
    [metabase.util.i18n :refer [deferred-trs]]
-   [metabase.util.log :as log]
-   [ring.util.codec :as codec]))
+   [metabase.util.log :as log]))
 
 (def ^:private ^:const ^String metabase-api-key-header "x-metabase-apikey")
 
@@ -77,7 +75,6 @@
   "Получает JWKS (JSON Web Key Set) из указанного URL"
   [jwks-uri]
   (try
-    (log/info "Получение JWKS из:" jwks-uri)
     (let [response (http/get jwks-uri
                              {:throw-exceptions false
                               :insecure?        true
@@ -85,21 +82,40 @@
       (if (= 200 (:status response))
         (json/parse-string (:body response) true)
         (do
-          (log/error "Ошибка получения JWKS, статус:" (:status response))
           (throw (ex-info "Не удалось получить JWKS" {:status (:status response)})))))
     (catch Exception e
-      (log/error e "Исключение при получении JWKS из:" jwks-uri)
       (throw e))))
 
-(defn- jwt-header
-  "Извлекает заголовок JWT токена"
-  [^String token]
+(defn pad-base64url [s]
+  (case (mod (count s) 4)
+    2 (str s "==")
+    3 (str s "=")
+    0 s
+    (str s)))
+
+(defn jwt-header [^String token]
   (try
     (let [[header] (str/split token #"\.")]
-      (json/parse-string (String. (codec/base64-decode header)) keyword))
+      (-> header
+          pad-base64url
+          (.getBytes "UTF-8")
+          ((fn [bytes] (.decode (java.util.Base64/getUrlDecoder) bytes)))
+          (String. "UTF-8")
+          (json/parse-string keyword)))
     (catch Exception e
-      (log/error e "Ошибка при извлечении заголовка JWT")
       nil)))
+
+(defn from-base64url-uint [s]
+  (let [decoder (java.util.Base64/getUrlDecoder)
+        ;; Добавляем padding вручную
+        padded (case (mod (count s) 4)
+                 2 (str s "==")
+                 3 (str s "=")
+                 0 s
+                 (throw (IllegalArgumentException. "Invalid base64url string length")))
+        bytes (.decode decoder padded)]
+    (BigInteger. 1 bytes))) ;; 1 = unsigneds
+
 
 (defn- jwks-key->public-key
   "Конвертирует JWKS ключ в публичный ключ для buddy-sign"
@@ -107,31 +123,14 @@
   (try
     (let [n (:n jwks-key)  ; modulus
           e (:e jwks-key)  ; exponent
-          ;; JWKS использует URL-safe base64, нужно заменить - на + и _ на /
-          n-safe (str/replace (str/replace n "-" "+") "_" "/")
-          e-safe (str/replace (str/replace e "-" "+") "_" "/")
-          ;; Добавляем padding если нужно
-          n-padded (if (zero? (mod (count n-safe) 4))
-                     n-safe
-                     (str n-safe (str/join (repeat (- 4 (mod (count n-safe) 4)) "="))))
-          e-padded (if (zero? (mod (count e-safe) 4))
-                     e-safe
-                     (str e-safe (str/join (repeat (- 4 (mod (count e-safe) 4)) "="))))
-          n-bytes (codec/base64-decode n-padded)
-          e-bytes (codec/base64-decode e-padded)]
-      (log/info "Конвертация JWKS ключа в публичный ключ")
-      (log/debug "Исходный n:" n)
-      (log/debug "Исходный e:" e)
-      (log/debug "Преобразованный n:" n-padded)
-      (log/debug "Преобразованный e:" e-padded)
+          ]
       ;; Создаем RSA публичный ключ из модуля и экспоненты
       (let [spec (java.security.spec.RSAPublicKeySpec.
-                   (java.math.BigInteger. 1 n-bytes)
-                   (java.math.BigInteger. 1 e-bytes))
+                   (from-base64url-uint n)
+                   (from-base64url-uint e))
             key-factory (java.security.KeyFactory/getInstance "RSA")]
         (.generatePublic key-factory spec)))
     (catch Exception e
-      (log/error e "Ошибка при конвертации JWKS ключа в публичный ключ")
       (throw e))))
 
 (defn- get-signing-key-from-jwt
@@ -143,14 +142,10 @@
           header (jwt-header token)
           kid (:kid header)]
 
-      (log/info "Получено" (count keys) "ключей из JWKS")
-      (log/info "Key ID из JWT заголовка:" kid)
-
       (if kid
         (let [signing-key (first (filter #(= (:kid %) kid) keys))]
           (if signing-key
             (do
-              (log/info "Найден подписывающий ключ для kid:" kid)
               (let [public-key (jwks-key->public-key signing-key)]
                 {:valid true
                  :token token
@@ -158,20 +153,17 @@
                  :signing-key public-key
                  :kid kid}))
             (do
-              (log/error "Ключ с kid" kid "не найден в JWKS")
               {:valid false
                :error (str "Ключ с kid " kid " не найден в JWKS")
                :token token
                :jwks-uri jwks-uri
                :kid kid})))
         (do
-          (log/error "JWT заголовок не содержит kid")
           {:valid false
            :error "JWT заголовок не содержит kid"
            :token token
            :jwks-uri jwks-uri})))
     (catch Exception e
-      (log/error e "Ошибка при получении подписывающего ключа из JWT")
       {:valid false
        :error (.getMessage e)
        :token token
@@ -188,14 +180,8 @@
               algorithm (:alg header)
               ;; Преобразуем алгоритм в формат, который понимает buddy-sign
               alg-key (keyword (str/lower-case algorithm))]
-          (log/info "Валидация JWT токена с алгоритмом:" algorithm)
-          (log/debug "Используемый алгоритм:" alg-key)
-          (log/debug "Тип signing-key:" (type signing-key))
-          (log/debug "Signing-key:" signing-key)
-          ;; Используем jwt-verify/verify для валидации JWT
-          (let [decoded-token (jwt-verify/verify token signing-key {:alg alg-key})]
-            (log/info "JWT токен успешно расшифрован и валидирован")
-            (log/info "JWT payload:" decoded-token)
+
+          (let [decoded-token (jwt/unsign token signing-key {:alg alg-key})]
             (assoc result :decoded-token decoded-token)))
         (catch Exception e
           (log/error e "Ошибка при расшифровке JWT токена")
@@ -213,8 +199,6 @@
                   (subs auth-header 7))]
       (if token
         (do
-          (log/infof "Получен OpenID токен: %s" token)
-
           ;; Получаем конфигурацию OpenID и валидируем токен
           (try
             (let [discovery-config (openid/fetch-openid-discovery-config)

@@ -188,11 +188,11 @@ export const getRoutes = store => (
           <Route path="login" title={t`Login`} component={LoginApp} />
           <Route path="login/:provider" title={t`Login`} component={LoginApp} />
         </Route>
-        <Route path="callback" component={OpenIDCallback} />
         <Route path="logout" component={LogoutApp} />
         <Route path="forgot_password" component={ForgotPasswordApp} />
         <Route path="reset_password/:token" component={ResetPasswordApp} />
       </Route>
+      <Route path="/login/callback" component={OpenIDCallback} />
 
       {/* MAIN */}
       <Route component={IsAuthenticated}>
