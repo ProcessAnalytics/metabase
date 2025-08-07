@@ -3,6 +3,7 @@
   is not used as part of the normal `app`; it is instead added selectively to appropriate routes."
   (:require
    [buddy.sign.jwt :as jwt]
+   [buddy.sign.jwt.verify :as jwt-verify]
    [cheshire.core :as json]
    [clj-http.client :as http]
    [clojure.string :as str]
@@ -106,9 +107,23 @@
   (try
     (let [n (:n jwks-key)  ; modulus
           e (:e jwks-key)  ; exponent
-          n-bytes (codec/base64-decode n)
-          e-bytes (codec/base64-decode e)]
+          ;; JWKS использует URL-safe base64, нужно заменить - на + и _ на /
+          n-safe (str/replace (str/replace n "-" "+") "_" "/")
+          e-safe (str/replace (str/replace e "-" "+") "_" "/")
+          ;; Добавляем padding если нужно
+          n-padded (if (zero? (mod (count n-safe) 4))
+                     n-safe
+                     (str n-safe (str/join (repeat (- 4 (mod (count n-safe) 4)) "="))))
+          e-padded (if (zero? (mod (count e-safe) 4))
+                     e-safe
+                     (str e-safe (str/join (repeat (- 4 (mod (count e-safe) 4)) "="))))
+          n-bytes (codec/base64-decode n-padded)
+          e-bytes (codec/base64-decode e-padded)]
       (log/info "Конвертация JWKS ключа в публичный ключ")
+      (log/debug "Исходный n:" n)
+      (log/debug "Исходный e:" e)
+      (log/debug "Преобразованный n:" n-padded)
+      (log/debug "Преобразованный e:" e-padded)
       ;; Создаем RSA публичный ключ из модуля и экспоненты
       (let [spec (java.security.spec.RSAPublicKeySpec.
                    (java.math.BigInteger. 1 n-bytes)
@@ -169,11 +184,19 @@
     (if (:valid result)
       (try
         (let [signing-key (:signing-key result)
-              algorithm (:alg (jwt-header token))
-              decoded-token (jwt/unsign token signing-key {:alg algorithm})]
-          (log/info "JWT токен успешно расшифрован и валидирован")
-          (log/info "JWT payload:" decoded-token)
-          (assoc result :decoded-token decoded-token))
+              header (jwt-header token)
+              algorithm (:alg header)
+              ;; Преобразуем алгоритм в формат, который понимает buddy-sign
+              alg-key (keyword (str/lower-case algorithm))]
+          (log/info "Валидация JWT токена с алгоритмом:" algorithm)
+          (log/debug "Используемый алгоритм:" alg-key)
+          (log/debug "Тип signing-key:" (type signing-key))
+          (log/debug "Signing-key:" signing-key)
+          ;; Используем jwt-verify/verify для валидации JWT
+          (let [decoded-token (jwt-verify/verify token signing-key {:alg alg-key})]
+            (log/info "JWT токен успешно расшифрован и валидирован")
+            (log/info "JWT payload:" decoded-token)
+            (assoc result :decoded-token decoded-token)))
         (catch Exception e
           (log/error e "Ошибка при расшифровке JWT токена")
           {:valid false
