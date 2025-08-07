@@ -100,6 +100,25 @@
       (log/error e "Ошибка при извлечении заголовка JWT")
       nil)))
 
+(defn- jwks-key->public-key
+  "Конвертирует JWKS ключ в публичный ключ для buddy-sign"
+  [jwks-key]
+  (try
+    (let [n (:n jwks-key)  ; modulus
+          e (:e jwks-key)  ; exponent
+          n-bytes (codec/base64-decode n)
+          e-bytes (codec/base64-decode e)]
+      (log/info "Конвертация JWKS ключа в публичный ключ")
+      ;; Создаем RSA публичный ключ из модуля и экспоненты
+      (let [spec (java.security.spec.RSAPublicKeySpec.
+                   (java.math.BigInteger. 1 n-bytes)
+                   (java.math.BigInteger. 1 e-bytes))
+            key-factory (java.security.KeyFactory/getInstance "RSA")]
+        (.generatePublic key-factory spec)))
+    (catch Exception e
+      (log/error e "Ошибка при конвертации JWKS ключа в публичный ключ")
+      (throw e))))
+
 (defn- get-signing-key-from-jwt
   "Получает подписывающий ключ из JWKS на основе JWT токена (аналогично Python jwt.JWKClient.get_signing_key_from_jwt)"
   [token jwks-uri]
@@ -117,11 +136,12 @@
           (if signing-key
             (do
               (log/info "Найден подписывающий ключ для kid:" kid)
-              {:valid true
-               :token token
-               :jwks-uri jwks-uri
-               :signing-key signing-key
-               :kid kid})
+              (let [public-key (jwks-key->public-key signing-key)]
+                {:valid true
+                 :token token
+                 :jwks-uri jwks-uri
+                 :signing-key public-key
+                 :kid kid}))
             (do
               (log/error "Ключ с kid" kid "не найден в JWKS")
               {:valid false
@@ -147,9 +167,19 @@
   [token jwks-uri]
   (let [result (get-signing-key-from-jwt token jwks-uri)]
     (if (:valid result)
-      (do
-        (log/info "JWT токен валиден, подписывающий ключ найден")
-        result)
+      (try
+        (let [signing-key (:signing-key result)
+              algorithm (:alg (jwt-header token))
+              decoded-token (jwt/unsign token signing-key {:alg algorithm})]
+          (log/info "JWT токен успешно расшифрован и валидирован")
+          (log/info "JWT payload:" decoded-token)
+          (assoc result :decoded-token decoded-token))
+        (catch Exception e
+          (log/error e "Ошибка при расшифровке JWT токена")
+          {:valid false
+           :error (str "Ошибка расшифровки JWT: " (.getMessage e))
+           :token token
+           :jwks-uri jwks-uri}))
       (do
         (log/error "JWT токен невалиден:" (:error result))
         result))))
