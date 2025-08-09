@@ -344,6 +344,16 @@
        (dissoc :password)
        (assoc :ldap_auth true))))
 
+(schema/defn create-new-openid-auth-user!
+  "Convenience for creating a new user via OpenID Connect. This account is considered active immediately; thus all active admins
+  will receive an email right away."
+  [new-user :- NewUser]
+  (insert-new-user!
+   (-> new-user
+       ;; We should not store OpenID passwords
+       (dissoc :password)
+       (assoc :ldap_auth true))))
+
 ;;; TODO -- it seems like maybe this should just be part of the [[pre-update]] logic whenever `:password` changes; then
 ;;; we can remove this function altogether.
 (defn set-password!
