@@ -2,24 +2,24 @@ import React, { useCallback } from "react";
 import PropTypes from "prop-types";
 import { t } from "ttag";
 import { connect } from "react-redux";
-import { updateOpenidSettings } from "metabase/admin/settings/settings";
-import { OPENID_SCHEMA } from "../auth/constants";
+import { updateTWorkSettings} from "metabase/admin/settings/settings";
+import { TWORK_SCHEMA } from "../auth/constants";
 import SettingsBatchForm from "./SettingsBatchForm";
-import { FormButton } from "./SettingsOpenidForm.styled";
+import { FormButton } from "./SettingsTWorkForm.styled";
 
 const propTypes = {
   settingValues: PropTypes.object.isRequired,
   onSubmit: PropTypes.func.isRequired,
 };
 
-const SettingsOpenidForm = ({ settingValues, onSubmit, ...props }) => {
-  const isEnabled = settingValues["openid-auth-enabled"];
+const SettingsTWorkForm = ({ settingValues, onSubmit, ...props }) => {
+  const isEnabled = settingValues["twork-auth-enabled"];
   const layout = getLayout(settingValues);
   const breadcrumbs = getBreadcrumbs();
 
   const handleSubmit = useCallback(
     values => {
-      return onSubmit({ ...values, "openid-auth-enabled": true });
+      return onSubmit({ ...values, "twork-auth-enabled": true });
     },
     [onSubmit],
   );
@@ -44,37 +44,47 @@ const SettingsOpenidForm = ({ settingValues, onSubmit, ...props }) => {
   );
 };
 
-SettingsOpenidForm.propTypes = propTypes;
+SettingsTWorkForm.propTypes = propTypes;
 
 const getLayout = settingValues => {
   return [
     {
       title: t`Provider Configuration`,
       settings: [
-        "openid-auth-config-url",
-        "openid-auth-issuer",
-        "openid-auth-client-id",
+        "twork-auth-config-url",
+        "twork-auth-issuer",
+        "twork-auth-client-id",
       ],
     },
     {
       title: t`Authentication Settings`,
       settings: [
-        "openid-auth-redirect-uri",
-        "openid-auth-response-type",
-        "openid-auth-scope",
-        "openid-auth-grant-type",
+        "twork-auth-redirect-uri",
+        "twork-auth-response-type",
+        "twork-auth-scope",
+        "twork-auth-grant-type",
+      ],
+    },
+    {
+      title: t`PeopleHub`,
+      settings: [
+        "twork-auth-people-hub-client-secret",
+        "twork-auth-people-hub-client-id",
+        "twork-auth-people-hub-auth-token-host",
+        "twork-auth-people-hub-scope",
+        "twork-auth-people-hub-employee-reader-host",
       ],
     },
   ];
 };
 
 const getBreadcrumbs = () => {
-  return [[t`Authentication`, "/admin/settings/authentication"], [t`OpenID Connect`]];
+  return [[t`Authentication`, "/admin/settings/authentication"], [t`TWork Connect`]];
 };
 
 const mapDispatchToProps = {
-  onSubmit: updateOpenidSettings,
-  onDeactivate: () => updateOpenidSettings(OPENID_SCHEMA.getDefault()),
+  onSubmit: updateTWorkSettings,
+  onDeactivate: () => updateTWorkSettings(TWORK_SCHEMA.getDefault()),
 };
 
-export default connect(null, mapDispatchToProps)(SettingsOpenidForm);
+export default connect(null, mapDispatchToProps)(SettingsTWorkForm);

@@ -344,13 +344,10 @@
        (dissoc :password)
        (assoc :ldap_auth true))))
 
-(schema/defn create-new-openid-auth-user!
-  "Convenience for creating a new user via OpenID Connect. This account is considered active immediately; thus all active admins
-  will receive an email right away."
+(schema/defn create-new-twork-auth-user!
   [new-user :- NewUser]
   (insert-new-user!
    (-> new-user
-       ;; We should not store OpenID passwords
        (dissoc :password)
        (assoc :ldap_auth true))))
 

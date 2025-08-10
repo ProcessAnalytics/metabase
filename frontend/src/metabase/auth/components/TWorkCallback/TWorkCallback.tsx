@@ -3,7 +3,7 @@ import { withRouter } from "react-router";
 import { useEffect, useState } from "react";
 import { t } from "ttag";
 
-interface OpenIDCallbackProps {
+interface TWorkCallbackProps {
   location: {
     search: string;
   };
@@ -12,7 +12,7 @@ interface OpenIDCallbackProps {
   };
 }
 
-const OpenIDCallback = ({ location, router }: OpenIDCallbackProps) => {
+const TWorkCallback = ({ location, router }: TWorkCallbackProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,30 +35,31 @@ const OpenIDCallback = ({ location, router }: OpenIDCallbackProps) => {
         }
 
         const params = new URLSearchParams({ code: code }).toString();
-        const response = await fetch(`/api/openid/callback?${params}`, {
+        const response = await fetch(`/api/twork/callback?${params}`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
           },
+          credentials: "include", // Важно для получения cookies
         });
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.message || t`Failed to process OpenID callback`);
+          throw new Error(errorData.message || t`Failed to process TWork callback`);
         }
 
-        const data = await response.json();
-
-        if (data.access_token) {
-          sessionStorage.setItem("openid_access_token", data.access_token);
+        // Проверяем, что получили cookies сессии
+        const cookies = document.cookie;
+        if (!cookies.includes("metabase.SESSION")) {
+          throw new Error(t`Session cookie not received`);
         }
 
-        const returnUrl = sessionStorage.getItem("openid_return_url") || "/";
-        sessionStorage.removeItem("openid_return_url");
+        const returnUrl = sessionStorage.getItem("twork_return_url") || "/";
+        sessionStorage.removeItem("twork_return_url");
         router.push(returnUrl);
 
       } catch (err) {
-        console.error("OpenID callback error:", err);
+        console.error("TWork callback error:", err);
         setError(err instanceof Error ? err.message : t`Authentication failed`);
         setIsLoading(false);
       }
@@ -77,7 +78,7 @@ const OpenIDCallback = ({ location, router }: OpenIDCallbackProps) => {
         flexDirection: "column"
       }}>
         <div style={{ marginBottom: "1rem" }}>
-          {t`Processing OpenID authentication...`}
+          {t`Processing TWork authentication...`}
         </div>
         <div className="loading-spinner" />
       </div>
@@ -121,4 +122,4 @@ const OpenIDCallback = ({ location, router }: OpenIDCallbackProps) => {
   return null;
 };
 
-export default withRouter(OpenIDCallback);
+export default withRouter(TWorkCallback);

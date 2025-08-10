@@ -17,7 +17,7 @@ import ForgotPasswordApp from "metabase/auth/containers/ForgotPasswordApp";
 import LoginApp from "metabase/auth/containers/LoginApp";
 import LogoutApp from "metabase/auth/containers/LogoutApp";
 import ResetPasswordApp from "metabase/auth/containers/ResetPasswordApp";
-import OpenIDCallback from "metabase/auth/components/OpenIDCallback";
+import TWorkCallback from "metabase/auth/components/TWorkCallback";
 
 /* Dashboards */
 import DashboardApp from "metabase/dashboard/containers/DashboardApp";
@@ -192,7 +192,7 @@ export const getRoutes = store => (
         <Route path="forgot_password" component={ForgotPasswordApp} />
         <Route path="reset_password/:token" component={ResetPasswordApp} />
       </Route>
-      <Route path="/login/callback" component={OpenIDCallback} />
+      <Route path="/login/callback" component={TWorkCallback} />
 
       {/* MAIN */}
       <Route component={IsAuthenticated}>

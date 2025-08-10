@@ -8,19 +8,18 @@ import {
 } from "metabase/plugins";
 
 
-
-import SettingsOpenidForm from "metabase/admin/settings/components/SettingsOpenidForm";
-import OpenidAuthCard from "metabase/admin/settings/auth/containers/OpenIDAuthCard";
+import SettingsTWorkForm from "metabase/admin/settings/components/SettingsTWorkForm";
+import TWorkAuthCard from "metabase/admin/settings/auth/containers/TWorkAuthCard";
 
 PLUGIN_AUTH_PROVIDERS.push(providers => {
-  const openidProvider = {
-    name: "openid",
+  const tworkProvider = {
+    name: "twork",
     // circular dependencies
-    Button: require("metabase/auth/containers/OpenIDButton").default,
+    Button: require("metabase/auth/containers/TWorkButton").default,
   };
 
   // Always register the provider, but let the component handle the enabled state
-  return [openidProvider, ...providers];
+  return [tworkProvider, ...providers];
 });
 
 PLUGIN_ADMIN_SETTINGS_UPDATES.push(
@@ -28,54 +27,51 @@ PLUGIN_ADMIN_SETTINGS_UPDATES.push(
     updateIn(sections, ["authentication", "settings"], settings => [
       ...settings,
       {
-        key: "openid-auth-enabled",
+        key: "twork-auth-enabled",
         description: null,
         noHeader: true,
-        widget: OpenidAuthCard,
+        widget: TWorkAuthCard,
       },
     ]),
   sections => ({
     ...sections,
-    "authentication/openid": {
-      component: SettingsOpenidForm,
+    "authentication/twork": {
+      component: SettingsTWorkForm,
       settings: [
         {
-          key: "openid-auth-enabled",
-          display_name: t`OpenID Connect Authentication`,
+          key: "twork-auth-enabled",
+          display_name: t`TWork Connect Authentication`,
           description: null,
           type: "boolean",
           getHidden: () => true,
         },
         {
-          key: "openid-auth-config-url",
+          key: "twork-auth-config-url",
           display_name: t`Configuration URL`,
-          placeholder: "https://your-provider.com/.well-known/openid_configuration",
           type: "string",
           required: true,
           autoFocus: true,
         },
         {
-          key: "openid-auth-issuer",
+          key: "twork-auth-issuer",
           display_name: t`Issuer`,
-          placeholder: "https://your-provider.com",
           type: "string",
           required: true,
         },
         {
-          key: "openid-auth-client-id",
+          key: "twork-auth-client-id",
           display_name: t`Client ID`,
           type: "string",
           required: true,
         },
         {
-          key: "openid-auth-redirect-uri",
+          key: "twork-auth-redirect-uri",
           display_name: t`Redirect URI`,
-          placeholder: "https://your-metabase.com/auth/openid/callback",
           type: "string",
           required: true,
         },
         {
-          key: "openid-auth-response-type",
+          key: "twork-auth-response-type",
           display_name: t`Response Type`,
           type: "select",
           options: [
@@ -85,14 +81,14 @@ PLUGIN_ADMIN_SETTINGS_UPDATES.push(
           required: false,
         },
         {
-          key: "openid-auth-scope",
+          key: "twork-auth-scope",
           display_name: t`Scope`,
           type: "string",
           defaultValue: "openid profile offline_access",
           required: false,
         },
         {
-          key: "openid-auth-grant-type",
+          key: "twork-auth-grant-type",
           display_name: t`Grant Type`,
           type: "select",
           options: [
@@ -101,9 +97,40 @@ PLUGIN_ADMIN_SETTINGS_UPDATES.push(
           defaultValue: "authorization_code",
           required: false,
         },
+        {
+          key: "twork-auth-people-hub-client-secret",
+          display_name: t`PeopleHub Client Secret`,
+          type: "password",
+          required: true,
+        },
+        {
+          key: "twork-auth-people-hub-client-id",
+          display_name: t`PeopleHub Client ID`,
+          type: "string",
+          required: true,
+        },
+        {
+          key: "twork-auth-people-hub-auth-token-host",
+          display_name: t`PeopleHub Auth Token Host`,
+          type: "string",
+          required: true,
+        },
+        {
+          key: "twork-auth-people-hub-scope",
+          display_name: t`PeopleHub Scope`,
+          type: "string",
+          defaultValue: "hrp_public_api hrp_employee_reader_public",
+          required: true,
+        },
+        {
+          key: "twork-auth-people-hub-employee-reader-host",
+          display_name: t`PeopleHub EmployeeReader Host`,
+          type: "string",
+          required: true,
+        },
       ],
     },
   }),
 );
 
-PLUGIN_IS_PASSWORD_USER.push(user => !user.openid_auth);
+PLUGIN_IS_PASSWORD_USER.push(_ => false);

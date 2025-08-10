@@ -9,7 +9,7 @@ import {
   EmailApi,
   SlackApi,
   LdapApi,
-  OpenidApi,
+  TWorkApi,
   GoogleApi,
 } from "metabase/services";
 import { refreshSiteSettings } from "metabase/redux/settings";
@@ -147,13 +147,13 @@ export const updateLdapSettings = createThunkAction(
   },
 );
 
-export const UPDATE_OPENID_SETTINGS =
-  "metabase/admin/settings/UPDATE_OPENID_SETTINGS";
-export const updateOpenidSettings = createThunkAction(
-  UPDATE_OPENID_SETTINGS,
+export const UPDATE_TWORK_SETTINGS =
+  "metabase/admin/settings/UPDATE_TWORK_SETTINGS";
+export const updateTWorkSettings = createThunkAction(
+  UPDATE_TWORK_SETTINGS,
   function (settings) {
     return async function (dispatch) {
-      const result = await OpenidApi.updateSettings(settings);
+      const result = await TWorkApi.updateSettings(settings);
       await dispatch(reloadSettings());
       return result;
     };

@@ -216,8 +216,8 @@ export const LdapApi = {
   updateSettings: PUT("/api/ldap/settings"),
 };
 
-export const OpenidApi = {
-  updateSettings: PUT("/api/openid/settings"),
+export const TWorkApi = {
+  updateSettings: PUT("/api/twork/settings"),
 };
 
 export const GoogleApi = {
@@ -361,7 +361,7 @@ export const RevisionsApi = {
 export const SessionApi = {
   create: POST("/api/session"),
   createWithGoogleAuth: POST("/api/session/google_auth"),
-  createWithOpenIDAuth: POST("/api/session/openid_auth"),
+  createWithTWorkAuth: POST("/api/session/twork_auth"),
   delete: DELETE("/api/session"),
   properties: GET("/api/session/properties"),
   forgot_password: POST("/api/session/forgot_password"),

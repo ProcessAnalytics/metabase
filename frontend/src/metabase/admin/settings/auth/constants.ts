@@ -19,15 +19,21 @@ export const GOOGLE_SCHEMA = Yup.object({
     .default(null),
 });
 
-export const OPENID_SCHEMA = Yup.object({
-  "openid-auth-enabled": Yup.boolean().nullable().default(false),
-  "openid-auth-config-url": Yup.string().nullable().default(null).when(["openid-auth-enabled", "$openid-auth-config-url"], REQUIRED_SCHEMA),
-  "openid-auth-issuer": Yup.string().nullable().default(null).when(["openid-auth-enabled", "$openid-auth-issuer"], REQUIRED_SCHEMA),
-  "openid-auth-client-id": Yup.string().nullable().default(null).when(["openid-auth-enabled", "$openid-auth-client-id"], REQUIRED_SCHEMA),
-  "openid-auth-redirect-uri": Yup.string().nullable().default(null).when(["openid-auth-enabled", "$openid-auth-redirect-uri"], REQUIRED_SCHEMA),
-  "openid-auth-response-type": Yup.string().nullable().default(null).when(["openid-auth-enabled", "$openid-auth-response-type"], REQUIRED_SCHEMA),
-  "openid-auth-scope": Yup.string().nullable().default(null).when(["openid-auth-enabled", "$openid-auth-scope"], REQUIRED_SCHEMA),
-  "openid-auth-grant-type": Yup.string().nullable().default(null).when(["openid-auth-enabled", "$openid-auth-grant-type"], REQUIRED_SCHEMA),
+export const TWORK_SCHEMA = Yup.object({
+  "twork-auth-enabled": Yup.boolean().nullable().default(false),
+  "twork-auth-config-url": Yup.string().nullable().default(null).when(["twork-auth-enabled", "$twork-auth-config-url"], REQUIRED_SCHEMA),
+  "twork-auth-issuer": Yup.string().nullable().default(null).when(["twork-auth-enabled", "$twork-auth-issuer"], REQUIRED_SCHEMA),
+  "twork-auth-client-id": Yup.string().nullable().default(null).when(["twork-auth-enabled", "$twork-auth-client-id"], REQUIRED_SCHEMA),
+  "twork-auth-redirect-uri": Yup.string().nullable().default(null).when(["twork-auth-enabled", "$twork-auth-redirect-uri"], REQUIRED_SCHEMA),
+  "twork-auth-response-type": Yup.string().nullable().default(null).when(["twork-auth-enabled", "$twork-auth-response-type"], REQUIRED_SCHEMA),
+  "twork-auth-scope": Yup.string().nullable().default(null).when(["twork-auth-enabled", "$twork-auth-scope"], REQUIRED_SCHEMA),
+  "twork-auth-grant-type": Yup.string().nullable().default(null).when(["twork-auth-enabled", "$twork-auth-grant-type"], REQUIRED_SCHEMA),
+  "twork-auth-people-hub-client-secret": Yup.string().nullable().default(null).when(["twork-auth-enabled", "$twork-auth-people-hub-client-secret"], REQUIRED_SCHEMA),
+  "twork-auth-people-hub-client-id": Yup.string().nullable().default(null).when(["twork-auth-enabled", "$twork-auth-people-hub-client-id"], REQUIRED_SCHEMA),
+  "twork-auth-people-hub-auth-token-host": Yup.string().nullable().default(null).when(["twork-auth-enabled", "$twork-auth-people-hub-auth-token-host"], REQUIRED_SCHEMA),
+  "twork-auth-people-hub-scope": Yup.string().nullable().default(null).when(["twork-auth-enabled", "$twork-auth-people-hub-scope"], REQUIRED_SCHEMA),
+  "twork-auth-people-hub-employee-reader-host": Yup.string().nullable().default(null).when(["twork-auth-enabled", "$twork-auth-people-hub-employee-reader-host"], REQUIRED_SCHEMA),
+
 });
 
 export const LDAP_SCHEMA = Yup.object({

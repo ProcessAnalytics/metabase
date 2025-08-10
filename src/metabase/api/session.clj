@@ -6,11 +6,13 @@
    [metabase.analytics.snowplow :as snowplow]
    [metabase.api.common :as api]
    [metabase.api.ldap :as api.ldap]
+   [metabase.api.twork :as api.twork]
    [metabase.config :as config]
    [metabase.email.messages :as messages]
    [metabase.events :as events]
    [metabase.integrations.google :as google]
    [metabase.integrations.ldap :as ldap]
+   [metabase.integrations.twork :as twork]
    [metabase.models.login-history :refer [LoginHistory]]
    [metabase.models.session :refer [Session]]
    [metabase.models.setting :as setting]
@@ -285,6 +287,30 @@
 #_{:clj-kondo/ignore [:deprecated-var]}
 (api/defendpoint-schema POST "/google_auth"
   "Login with Google Auth."
+  [:as {{:keys [token]} :body, :as request}]
+  {token su/NonBlankString}
+  (when-not (google/google-auth-client-id)
+    (throw (ex-info "Google Auth is disabled." {:status-code 400})))
+  ;; Verify the token is valid with Google
+  (if throttling-disabled?
+    (google/do-google-auth request)
+    (http-401-on-error
+     (throttle/with-throttling [(login-throttlers :ip-address) (request.u/ip-address request)]
+       (let [user (google/do-google-auth request)
+             {session-uuid :id, :as session} (create-session! :sso user (request.u/device-info request))
+             response {:id (str session-uuid)}
+             user (db/select-one [User :id :is_active], :email (:email user))]
+         (if (and user (:is_active user))
+           (mw.session/set-session-cookies request
+                                           response
+                                           session
+                                           (t/zoned-date-time (t/zone-id "GMT")))
+           (throw (ex-info (str disabled-account-message)
+                           {:status-code 401
+                            :errors      {:account disabled-account-snippet}}))))))))
+
+#_{:clj-kondo/ignore [:deprecated-var]}
+(api/defendpoint-schema POST "/twork_auth"
   [:as {{:keys [token]} :body, :as request}]
   {token su/NonBlankString}
   (when-not (google/google-auth-client-id)

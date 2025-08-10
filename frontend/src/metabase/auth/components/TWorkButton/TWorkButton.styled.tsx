@@ -1,7 +1,7 @@
 import styled from "@emotion/styled";
 import { color } from "metabase/lib/colors";
 
-export const OpenidButtonRoot = styled.div`
+export const TWorkButtonRoot = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -66,12 +66,12 @@ export const loginGoogle = createThunkAction(
     },
 );
 
-export const LOGIN_OPENID = "metabase/auth/LOGIN_OPENID";
-export const loginOpenID = createThunkAction(
-  LOGIN_OPENID,
+export const LOGIN_TWORK = "metabase/auth/LOGIN_TWORK";
+export const loginTWork = createThunkAction(
+  LOGIN_TWORK,
   (token: string, redirectUrl = "/") =>
     async (dispatch: any) => {
-      await SessionApi.createWithOpenIDAuth({ token });
+      await SessionApi.createWithTWorkAuth({ token });
       await dispatch(refreshSession());
       trackLogin();
 

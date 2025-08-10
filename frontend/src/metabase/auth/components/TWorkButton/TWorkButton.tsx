@@ -1,20 +1,20 @@
 import React, { useCallback, useState } from "react";
 import { t } from "ttag";
 import {
-  OpenidButtonRoot,
+  TWorkButtonRoot,
   AuthError,
   AuthErrorRoot,
-} from "./OpenIDButton.styled";
+} from "./TWorkButton.styled";
 
-export interface OpenidButtonProps {
+export interface TWorkButtonProps {
   isCard?: boolean;
   isEnabled?: boolean;
 }
 
-const OpenidButton = ({
+const TWorkButton = ({
   isCard,
   isEnabled = true,
-}: OpenidButtonProps) => {
+}: TWorkButtonProps) => {
   const [errors, setErrors] = useState<string[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -26,7 +26,7 @@ const OpenidButton = ({
         setIsLoading(true);
 
         // Call the initiate endpoint to get authorization URL
-        const response = await fetch("/api/openid/auth_url", {
+        const response = await fetch("/api/twork/auth_url", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -35,7 +35,7 @@ const OpenidButton = ({
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.message || t`Failed to initiate OpenID authentication`);
+          throw new Error(errorData.message || t`Failed to initiate TWork authentication`);
         }
 
         const data = await response.json();
@@ -43,13 +43,13 @@ const OpenidButton = ({
         // Store current URL for return after authentication
         const returnUrl = window.location.pathname + window.location.search;
         if (returnUrl !== "/auth/login" && returnUrl !== "/auth/callback") {
-          sessionStorage.setItem("openid_return_url", returnUrl);
+          sessionStorage.setItem("twork_return_url", returnUrl);
         }
 
-        // Redirect to the OpenID provider
+        // Redirect to the TWork provider
         window.location.href = data.authorization_url;
       } catch (error) {
-        console.error("OpenID authentication error:", error);
+        console.error("TWork authentication error:", error);
         setErrors([error instanceof Error ? error.message : t`Authentication failed`]);
         setIsLoading(false);
       }
@@ -58,12 +58,12 @@ const OpenidButton = ({
 
   const handleError = useCallback(() => {
     setErrors([
-      t`There was an issue signing in with OpenID Connect. Please contact an administrator.`,
+      t`There was an issue signing in with TWork Connect. Please contact an administrator.`,
     ]);
   }, []);
 
   return (
-    <OpenidButtonRoot>
+    <TWorkButtonRoot>
       {(
         <button
           onClick={handleLogin}
@@ -81,7 +81,7 @@ const OpenidButton = ({
             fontWeight: 500,
           }}
         >
-          {isLoading ? t`Redirecting...` : t`Sign in with OpenID Connect`}
+          {isLoading ? t`Redirecting...` : t`Sign in with TWork Connect`}
         </button>
       )}
 
@@ -92,8 +92,8 @@ const OpenidButton = ({
           ))}
         </AuthErrorRoot>
       )}
-    </OpenidButtonRoot>
+    </TWorkButtonRoot>
   );
 };
 
-export default OpenidButton;
+export default TWorkButton;
