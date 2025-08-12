@@ -7,7 +7,7 @@
       [clojure.string :as str]
       [metabase.api.common :as api]
       [java-time :as t]
-      [metabase.api.session :as api.session]
+;      [metabase.api.session :as api.session]
       [metabase.models.interface :as mi]
       [metabase.models.setting :as setting
        :refer                      [defsetting]]
@@ -18,24 +18,15 @@
       [metabase.util.log :as log]
       [metabase.util.schema :as su]
       [schema.core :as s]
-      [toucan.db :as db]
-      [buddy.sign.jwt :as jwt]
-      [cheshire.core :as json]
-      [clj-http.client :as http]
-      [clojure.string :as str]
-      [java-time :as t]
-      [metabase.api.session :as api.session]
-      [metabase.models.session :refer [Session]]
       [metabase.models.setting :refer [defsetting]]
       [metabase.models.user :as user :refer [User]]
-      [metabase.server.middleware.session :as mw.session]
+;      [metabase.server.middleware.session :as mw.session]
       [metabase.server.middleware.util :as mw.util]
       [metabase.server.request.util :as request.u]
       [metabase.util :as u]
       [metabase.util.i18n :refer [deferred-trs]]
       [metabase.util.log :as log]
       [metabase.util.schema :as su]
-      [schema.core :as s]
       [toucan.db :as db])
     (:import
       (java.net URL)
@@ -462,79 +453,79 @@
                                           :email      email})
             (assoc :is_active true)))))
 
-(defn twork-login
-  "Выполняет вход через TWork токен и возвращает новую сессию."
-  [decoded-token device-info]
-  (try
-    (let [email (get-in decoded-token [:email])
-          first-name (or (get-in decoded-token [:given_name])
-                         (get-in decoded-token [:name])
-                         "TWork")
-          last-name (or (get-in decoded-token [:family_name])
-                        "User")]
+;(defn twork-login
+;  "Выполняет вход через TWork токен и возвращает новую сессию."
+;  [decoded-token device-info]
+;  (try
+;    (let [email (get-in decoded-token [:email])
+;          first-name (or (get-in decoded-token [:given_name])
+;                         (get-in decoded-token [:name])
+;                         "TWork")
+;          last-name (or (get-in decoded-token [:family_name])
+;                        "User")]
+;
+;      (when-not email
+;        (throw (ex-info "TWork токен не содержит email"
+;                        {:status-code 400
+;                         :errors      {:token "TWork токен не содержит email"}})))
+;
+;      (let [user (fetch-or-create-twork-user! {:email email
+;                                               :first-name first-name
+;                                               :last-name last-name})]
+;        (if (:is_active user)
+;          (api.session/create-session! :sso user device-info)
+;          (throw (ex-info "Ваш аккаунт отключен. Обратитесь к администратору."
+;                          {:status-code 401
+;                           :errors      {:_error "Ваш аккаунт отключен."}})))))
+;    (catch Exception e
+;      (log/error e "Ошибка при создании сессии TWork")
+;      (throw e))))
 
-      (when-not email
-        (throw (ex-info "TWork токен не содержит email"
-                        {:status-code 400
-                         :errors      {:token "TWork токен не содержит email"}})))
+;(defn- wrap-twork-token* [{:keys [headers], :as request}]
+;  (if-let [auth-header (get headers "authorization")]
+;    (let [token (when (str/starts-with? auth-header "Bearer ")
+;                  (subs auth-header 7))]
+;      (if token
+;        (do
+;          ;; Получаем конфигурацию TWork и валидируем токен
+;          (try
+;            (let [discovery-config (twork/fetch-twork-discovery-config)
+;                  jwks-uri (:jwks_uri discovery-config)]
+;              (when jwks-uri
+;                (let [validation-result (validate-jwt-token token jwks-uri)]
+;                  (if (:valid validation-result)
+;                    (let [decoded-token (:decoded-token validation-result)
+;                          device-info (request.u/device-info request)
+;                          session (twork-login decoded-token device-info)
+;                          request-time (t/zoned-date-time (t/zone-id "GMT"))]
+;                      ;; Создаем ответ с cookie сессии
+;                      (let [response {:id (str (:id session))}]
+;                        (-> request
+;                            (assoc :twork-token token)
+;                            (assoc :metabase-session-id (str (:id session)))
+;                            (assoc :metabase-session-type :normal)
+;                            (assoc :metabase-user-id (:user_id session))
+;                            (assoc :twork-session-response
+;                                   (mw.session/set-session-cookies request response session request-time)))))
+;                    (do
+;                      (log/error "JWT токен невалиден:" (:error validation-result))
+;                      (assoc request :twork-token token))))))
+;            (catch Exception e
+;              (log/error e "Ошибка при получении TWork конфигурации для валидации токена")
+;              (assoc request :twork-token token)))
+;
+;          (assoc request :twork-token token))
+;        request))
+;    request))
 
-      (let [user (fetch-or-create-twork-user! {:email email
-                                               :first-name first-name
-                                               :last-name last-name})]
-        (if (:is_active user)
-          (api.session/create-session! :sso user device-info)
-          (throw (ex-info "Ваш аккаунт отключен. Обратитесь к администратору."
-                          {:status-code 401
-                           :errors      {:_error "Ваш аккаунт отключен."}})))))
-    (catch Exception e
-      (log/error e "Ошибка при создании сессии TWork")
-      (throw e))))
-
-(defn- wrap-twork-token* [{:keys [headers], :as request}]
-  (if-let [auth-header (get headers "authorization")]
-    (let [token (when (str/starts-with? auth-header "Bearer ")
-                  (subs auth-header 7))]
-      (if token
-        (do
-          ;; Получаем конфигурацию TWork и валидируем токен
-          (try
-            (let [discovery-config (twork/fetch-twork-discovery-config)
-                  jwks-uri (:jwks_uri discovery-config)]
-              (when jwks-uri
-                (let [validation-result (validate-jwt-token token jwks-uri)]
-                  (if (:valid validation-result)
-                    (let [decoded-token (:decoded-token validation-result)
-                          device-info (request.u/device-info request)
-                          session (twork-login decoded-token device-info)
-                          request-time (t/zoned-date-time (t/zone-id "GMT"))]
-                      ;; Создаем ответ с cookie сессии
-                      (let [response {:id (str (:id session))}]
-                        (-> request
-                            (assoc :twork-token token)
-                            (assoc :metabase-session-id (str (:id session)))
-                            (assoc :metabase-session-type :normal)
-                            (assoc :metabase-user-id (:user_id session))
-                            (assoc :twork-session-response
-                                   (mw.session/set-session-cookies request response session request-time)))))
-                    (do
-                      (log/error "JWT токен невалиден:" (:error validation-result))
-                      (assoc request :twork-token token))))))
-            (catch Exception e
-              (log/error e "Ошибка при получении TWork конфигурации для валидации токена")
-              (assoc request :twork-token token)))
-
-          (assoc request :twork-token token))
-        request))
-    request))
-
-(defn wrap-twork-token
-  "Middleware that извлекает TWork токен из заголовка Authorization, валидирует его и создает сессию.
-  Токен должен быть в формате 'Bearer <token>'."
-  [handler]
-  (fn [request respond raise]
-    (let [request-with-token (wrap-twork-token* request)]
-      (if (:twork-session-response request-with-token)
-        ;; Если у нас есть ответ с сессией, возвращаем его напрямую
-        (respond (:twork-session-response request-with-token))
-        ;; Иначе продолжаем обработку запроса
-        (handler request-with-token respond raise)))))
+;(defn wrap-twork-token
+;  "Middleware that извлекает TWork токен из заголовка Authorization, валидирует его и создает сессию.
+;  Токен должен быть в формате 'Bearer <token>'."
+;  [handler]
+;  (fn [request respond raise]
+;    (let [request-with-token (wrap-twork-token* request)]
+;      (if (:twork-session-response request-with-token)
+;        ;; Если у нас есть ответ с сессией, возвращаем его напрямую
+;        (respond (:twork-session-response request-with-token))
+;        ;; Иначе продолжаем обработку запроса
+;        (handler request-with-token respond raise)))))

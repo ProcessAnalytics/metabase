@@ -25,7 +25,6 @@ const TWorkButton = ({
         setErrors([]);
         setIsLoading(true);
 
-        // Call the initiate endpoint to get authorization URL
         const response = await fetch("/api/twork/auth_url", {
           method: "GET",
           headers: {
@@ -40,13 +39,11 @@ const TWorkButton = ({
 
         const data = await response.json();
 
-        // Store current URL for return after authentication
         const returnUrl = window.location.pathname + window.location.search;
         if (returnUrl !== "/auth/login" && returnUrl !== "/auth/callback") {
           sessionStorage.setItem("twork_return_url", returnUrl);
         }
 
-        // Redirect to the TWork provider
         window.location.href = data.authorization_url;
       } catch (error) {
         console.error("TWork authentication error:", error);

@@ -19,13 +19,3 @@ export const AuthError = styled.div`
   font-size: 0.875rem;
   text-align: center;
 `;
-
-export const TextLink = styled.a`
-  color: ${color("brand")};
-  text-decoration: none;
-  font-weight: 500;
-
-  &:hover {
-    text-decoration: underline;
-  }
-`;

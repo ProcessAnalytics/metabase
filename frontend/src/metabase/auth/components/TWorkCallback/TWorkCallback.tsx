@@ -2,6 +2,8 @@ import React from "react";
 import { withRouter } from "react-router";
 import { useEffect, useState } from "react";
 import { t } from "ttag";
+import { connect } from "react-redux";
+import { loginTWork } from "../../actions";
 
 interface TWorkCallbackProps {
   location: {
@@ -10,22 +12,21 @@ interface TWorkCallbackProps {
   router: {
     push: (path: string) => void;
   };
+  onLogin: (token: string, redirectUrl?: string) => void;
 }
 
-const TWorkCallback = ({ location, router }: TWorkCallbackProps) => {
+const TWorkCallback = ({ location, router, onLogin }: TWorkCallbackProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Получаем параметры из URL
         const urlParams = new URLSearchParams(location.search);
         const code = urlParams.get("code");
         const error = urlParams.get("error");
         const errorDescription = urlParams.get("error_description");
 
-        // Проверяем на ошибки от провайдера
         if (error) {
           throw new Error(errorDescription || error);
         }
@@ -40,7 +41,7 @@ const TWorkCallback = ({ location, router }: TWorkCallbackProps) => {
           headers: {
             "Content-Type": "application/json",
           },
-          credentials: "include", // Важно для получения cookies
+          credentials: "include",
         });
 
         if (!response.ok) {
@@ -48,15 +49,18 @@ const TWorkCallback = ({ location, router }: TWorkCallbackProps) => {
           throw new Error(errorData.message || t`Failed to process TWork callback`);
         }
 
-        // Проверяем, что получили cookies сессии
-        const cookies = document.cookie;
-        if (!cookies.includes("metabase.SESSION")) {
-          throw new Error(t`Session cookie not received`);
+        const responseData = await response.json();
+        const token = responseData.token;
+
+        if (!token) {
+          throw new Error(t`No token received from TWork callback`);
         }
 
         const returnUrl = sessionStorage.getItem("twork_return_url") || "/";
         sessionStorage.removeItem("twork_return_url");
-        router.push(returnUrl);
+
+        onLogin(token, returnUrl);
+        setIsLoading(false);
 
       } catch (err) {
         console.error("TWork callback error:", err);
@@ -66,7 +70,7 @@ const TWorkCallback = ({ location, router }: TWorkCallbackProps) => {
     };
 
     handleCallback();
-  }, [location.search, router]);
+  }, [location.search, router, onLogin]);
 
   if (isLoading) {
     return (
@@ -122,4 +126,8 @@ const TWorkCallback = ({ location, router }: TWorkCallbackProps) => {
   return null;
 };
 
-export default withRouter(TWorkCallback);
+const mapDispatchToProps = {
+  onLogin: loginTWork,
+};
+
+export default connect(null, mapDispatchToProps)(withRouter(TWorkCallback));

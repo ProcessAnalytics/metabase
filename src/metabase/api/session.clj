@@ -6,7 +6,6 @@
    [metabase.analytics.snowplow :as snowplow]
    [metabase.api.common :as api]
    [metabase.api.ldap :as api.ldap]
-   [metabase.api.twork :as api.twork]
    [metabase.config :as config]
    [metabase.email.messages :as messages]
    [metabase.events :as events]
@@ -309,29 +308,30 @@
                            {:status-code 401
                             :errors      {:account disabled-account-snippet}}))))))))
 
-#_{:clj-kondo/ignore [:deprecated-var]}
-(api/defendpoint-schema POST "/twork_auth"
-  [:as {{:keys [token]} :body, :as request}]
-  {token su/NonBlankString}
-  (when-not (google/google-auth-client-id)
-    (throw (ex-info "Google Auth is disabled." {:status-code 400})))
-  ;; Verify the token is valid with Google
-  (if throttling-disabled?
-    (google/do-google-auth request)
-    (http-401-on-error
-     (throttle/with-throttling [(login-throttlers :ip-address) (request.u/ip-address request)]
-       (let [user (google/do-google-auth request)
-             {session-uuid :id, :as session} (create-session! :sso user (request.u/device-info request))
-             response {:id (str session-uuid)}
-             user (db/select-one [User :id :is_active], :email (:email user))]
-         (if (and user (:is_active user))
-           (mw.session/set-session-cookies request
-                                           response
-                                           session
-                                           (t/zoned-date-time (t/zone-id "GMT")))
-           (throw (ex-info (str disabled-account-message)
-                           {:status-code 401
-                            :errors      {:account disabled-account-snippet}}))))))))
+;#_{:clj-kondo/ignore [:deprecated-var]}
+;(api/defendpoint-schema POST "/twork_auth"
+;  "Login with TWork Auth."
+;  [:as {{:keys [token]} :body, :as request}]
+;  {token su/NonBlankString}
+;  (when-not (twork/twork-auth-configured)
+;    (throw (ex-info "TWork Auth is disabled." {:status-code 400})))
+;  ;; Verify the token is valid with TWork
+;  (if throttling-disabled?
+;    (twork/do-twork-auth request)
+;    (http-401-on-error
+;     (throttle/with-throttling [(login-throttlers :ip-address) (request.u/ip-address request)]
+;       (let [user (twork/do-twork-auth request)
+;             {session-uuid :id, :as session} (create-session! :sso user (request.u/device-info request))
+;             response {:id (str session-uuid)}
+;             user (db/select-one [User :id :is_active], :email (:email user))]
+;         (if (and user (:is_active user))
+;           (mw.session/set-session-cookies request
+;                                           response
+;                                           session
+;                                           (t/zoned-date-time (t/zone-id "GMT")))
+;           (throw (ex-info (str disabled-account-message)
+;                           {:status-code 401
+;                            :errors      {:account disabled-account-snippet}}))))))))
 
 (defn- +log-all-request-failures [handler]
   (fn [request respond raise]
