@@ -11,8 +11,8 @@ type DispatchProps = Pick<AuthCardProps, "onDeactivate">;
 
 const mapStateToProps = (state: State): StateProps => ({
   type: "twork",
-  name: t`TWork Connect`,
-  description: t`Allow users to login via TWork Connect.`,
+  name: t`TWork`,
+  description: t`Allow users to login via TWork.`,
   isConfigured: getSetting(state, "twork-auth-configured?"),
 });
 

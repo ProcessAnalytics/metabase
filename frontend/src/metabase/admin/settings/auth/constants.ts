@@ -33,7 +33,6 @@ export const TWORK_SCHEMA = Yup.object({
   "twork-auth-people-hub-auth-token-host": Yup.string().nullable().default(null).when(["twork-auth-enabled", "$twork-auth-people-hub-auth-token-host"], REQUIRED_SCHEMA),
   "twork-auth-people-hub-scope": Yup.string().nullable().default(null).when(["twork-auth-enabled", "$twork-auth-people-hub-scope"], REQUIRED_SCHEMA),
   "twork-auth-people-hub-employee-reader-host": Yup.string().nullable().default(null).when(["twork-auth-enabled", "$twork-auth-people-hub-employee-reader-host"], REQUIRED_SCHEMA),
-
 });
 
 export const LDAP_SCHEMA = Yup.object({

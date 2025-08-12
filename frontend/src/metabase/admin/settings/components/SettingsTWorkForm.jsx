@@ -84,7 +84,6 @@ const getBreadcrumbs = () => {
 
 const mapDispatchToProps = {
   onSubmit: updateTWorkSettings,
-  onDeactivate: () => updateTWorkSettings(TWORK_SCHEMA.getDefault()),
 };
 
 export default connect(null, mapDispatchToProps)(SettingsTWorkForm);
