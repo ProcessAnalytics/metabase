@@ -361,7 +361,7 @@ export const RevisionsApi = {
 export const SessionApi = {
   create: POST("/api/session"),
   createWithGoogleAuth: POST("/api/session/google_auth"),
-  createWithTWorkAuth: POST("/api/session/twork_auth"),
+  createWithTWorkAuth: POST("/api/session/twork/auth"),
   delete: DELETE("/api/session"),
   properties: GET("/api/session/properties"),
   forgot_password: POST("/api/session/forgot_password"),
