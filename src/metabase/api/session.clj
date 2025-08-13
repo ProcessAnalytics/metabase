@@ -308,30 +308,43 @@
                            {:status-code 401
                             :errors      {:account disabled-account-snippet}}))))))))
 
-;#_{:clj-kondo/ignore [:deprecated-var]}
-;(api/defendpoint-schema POST "/twork_auth"
-;  "Login with TWork Auth."
-;  [:as {{:keys [token]} :body, :as request}]
-;  {token su/NonBlankString}
-;  (when-not (twork/twork-auth-configured)
-;    (throw (ex-info "TWork Auth is disabled." {:status-code 400})))
-;  ;; Verify the token is valid with TWork
-;  (if throttling-disabled?
-;    (twork/do-twork-auth request)
-;    (http-401-on-error
-;     (throttle/with-throttling [(login-throttlers :ip-address) (request.u/ip-address request)]
-;       (let [user (twork/do-twork-auth request)
-;             {session-uuid :id, :as session} (create-session! :sso user (request.u/device-info request))
-;             response {:id (str session-uuid)}
-;             user (db/select-one [User :id :is_active], :email (:email user))]
-;         (if (and user (:is_active user))
-;           (mw.session/set-session-cookies request
-;                                           response
-;                                           session
-;                                           (t/zoned-date-time (t/zone-id "GMT")))
-;           (throw (ex-info (str disabled-account-message)
-;                           {:status-code 401
-;                            :errors      {:account disabled-account-snippet}}))))))))
+#_{:clj-kondo/ignore [:deprecated-var]}
+(api/defendpoint-schema GET "/twork/auth_url"
+  []
+  (let [result (twork/fetch-auth-url)]
+    {:authorization_url (:authorization_url result)}))
+
+#_{:clj-kondo/ignore [:deprecated-var]}
+(api/defendpoint-schema GET "/twork/auth"
+  [:as {{:keys [code]} :params, :as request}]
+  {code (s/maybe su/NonBlankString)}
+
+  (when-not code
+    (throw (ex-info "Authorization code is required" {:status-code 400})))
+
+  (let [access-token     (twork/fetch-access-token code)
+        discovery-config (twork/fetch-twork-discovery-config)
+        jwks-uri         (:jwks_uri discovery-config)]
+  (when jwks-uri
+    (let [decoded-token (:decoded-token (twork/validate-jwt-token access-token jwks-uri))
+          master_id (Integer/parseInt (:master_id decoded-token))
+          people-hub-user (first (twork/fetch-employees-by-ids [master_id]))
+          user (twork/fetch-or-create-twork-user! {
+                                                    :email (:email people-hub-user)
+                                                    :first-name (:first-name people-hub-user)
+                                                    :last-name (:last-name people-hub-user)
+                                                    })
+          {session-uuid :id, :as session} (create-session! :sso user (request.u/device-info request))
+          response {:id (str session-uuid)}
+          ]
+          (if (and user (:is_active user))
+               (mw.session/set-session-cookies request
+                                               response
+                                               session
+                                               (t/zoned-date-time (t/zone-id "GMT")))
+               (throw (ex-info (str disabled-account-message)
+                               {:status-code 401
+                                :errors      {:account disabled-account-snippet}})))))))
 
 (defn- +log-all-request-failures [handler]
   (fn [request respond raise]

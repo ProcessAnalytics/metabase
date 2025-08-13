@@ -3,7 +3,6 @@ import PropTypes from "prop-types";
 import { t } from "ttag";
 import { connect } from "react-redux";
 import { updateTWorkSettings} from "metabase/admin/settings/settings";
-import { TWORK_SCHEMA } from "../auth/constants";
 import SettingsBatchForm from "./SettingsBatchForm";
 import { FormButton } from "./SettingsTWorkForm.styled";
 

@@ -7,7 +7,6 @@
       [clojure.string :as str]
       [metabase.api.common :as api]
       [java-time :as t]
-;      [metabase.api.session :as api.session]
       [metabase.models.interface :as mi]
       [metabase.models.setting :as setting
        :refer                      [defsetting]]
@@ -15,12 +14,10 @@
        :refer                   [User]]
       [metabase.util :as u]
       [metabase.util.i18n :refer [deferred-tru tru]]
-      [metabase.util.log :as log]
       [metabase.util.schema :as su]
       [schema.core :as s]
       [metabase.models.setting :refer [defsetting]]
       [metabase.models.user :as user :refer [User]]
-;      [metabase.server.middleware.session :as mw.session]
       [metabase.server.middleware.util :as mw.util]
       [metabase.server.request.util :as request.u]
       [metabase.util :as u]
@@ -126,23 +123,19 @@
   "Fetch TWork Connect configuration from the discovery endpoint."
   [config-url]
   (try
-    (log/info "Fetching TWork configuration from:" config-url)
     (let [response (http/get config-url
                              {:throw-exceptions false
                               :insecure?        true
                               ; Allow insecure SSL for testing
                               :accept           :json})]
-      (log/info "TWork configuration response status:" (:status response))
       (if (= 200 (:status response))
         (json/parse-string (:body response) true)
         (do
-          (log/error "TWork configuration failed with status:" (:status response) "body:" (:body response))
           (throw
             (ex-info (tru "Failed to fetch TWork configuration")
                      {:status (:status response)
                       :body   (:body response)})))))
     (catch Exception e
-      (log/error e "Exception while fetching TWork configuration from:" config-url)
       (throw
         (ex-info (tru "Error fetching TWork configuration: {0}" (.getMessage e))
                  {:error e})))))
@@ -193,7 +186,6 @@
 
           {:authorization_url authorization-url}))
       (catch Exception e
-        (log/error e "Error initiating TWork authentication")
         (throw
           (ex-info (tru "Failed to initiate TWork authentication: {0}" (.getMessage e))
                    {:status-code 500
@@ -204,7 +196,6 @@
   [config-url issuer client-id]
   (try
     (let [config (fetch-twork-configuration config-url)]
-      (log/info "TWork configuration fetched successfully:" (keys config))
       (cond
        (not= issuer (:issuer config))
        {:status  :ERROR
@@ -249,13 +240,11 @@
       (when-not config-url
         (throw (ex-info (tru "TWork config URL не настроен") {:status-code 400})))
 
-      (log/info "Получение TWork discovery конфигурации из:" config-url)
       (let [config (fetch-twork-configuration config-url)]
         {:issuer                              (:issuer config)
          :id_token_signing_alg_values_supported (:id_token_signing_alg_values_supported config)
          :jwks_uri                            (:jwks_uri config)}))
     (catch Exception e
-      (log/error e "Ошибка при получении TWork discovery конфигурации")
       (throw (ex-info (tru "Не удалось получить TWork discovery конфигурацию: {0}" (.getMessage e))
                       {:status-code 500
                        :error       e})))))
@@ -443,7 +432,7 @@
   [new-user]
   (user/create-new-twork-auth-user! new-user))
 
-(defn- fetch-or-create-twork-user!
+(defn fetch-or-create-twork-user!
   "Получает или создает пользователя на основе информации из TWork токена."
   [user-info]
   (let [{:keys [email first-name last-name]} user-info]
@@ -453,79 +442,77 @@
                                           :email      email})
             (assoc :is_active true)))))
 
-;(defn twork-login
-;  "Выполняет вход через TWork токен и возвращает новую сессию."
-;  [decoded-token device-info]
-;  (try
-;    (let [email (get-in decoded-token [:email])
-;          first-name (or (get-in decoded-token [:given_name])
-;                         (get-in decoded-token [:name])
-;                         "TWork")
-;          last-name (or (get-in decoded-token [:family_name])
-;                        "User")]
-;
-;      (when-not email
-;        (throw (ex-info "TWork токен не содержит email"
-;                        {:status-code 400
-;                         :errors      {:token "TWork токен не содержит email"}})))
-;
-;      (let [user (fetch-or-create-twork-user! {:email email
-;                                               :first-name first-name
-;                                               :last-name last-name})]
-;        (if (:is_active user)
-;          (api.session/create-session! :sso user device-info)
-;          (throw (ex-info "Ваш аккаунт отключен. Обратитесь к администратору."
-;                          {:status-code 401
-;                           :errors      {:_error "Ваш аккаунт отключен."}})))))
-;    (catch Exception e
-;      (log/error e "Ошибка при создании сессии TWork")
-;      (throw e))))
+(defn fetch-people-hub-token []
+    (let [people-hub-auth-token-host (twork-auth-people-hub-auth-token-host)
+          people-hub-client-id       (twork-auth-people-hub-client-id)
+          people-hub-client-secret   (twork-auth-people-hub-client-secret)
+          people-hub-scope           (twork-auth-people-hub-scope)
+          token-data                 {"grant_type" "client_credentials"
+                                      "client_id" people-hub-client-id
+                                      "client_secret" people-hub-client-secret
+                                      "scope" people-hub-scope}
+        ]
+    (try
+      (let [response (http/post people-hub-auth-token-host
+                                 {:form-params token-data
+                                  :throw-exceptions false})]
+        (if (>= (:status response) 400)
+          (throw (ex-info "Failed to retrieve authorization token"
+                          {:type :http-error
+                           :status (:status response)
+                           :body (:body response)})))
 
-;(defn- wrap-twork-token* [{:keys [headers], :as request}]
-;  (if-let [auth-header (get headers "authorization")]
-;    (let [token (when (str/starts-with? auth-header "Bearer ")
-;                  (subs auth-header 7))]
-;      (if token
-;        (do
-;          ;; Получаем конфигурацию TWork и валидируем токен
-;          (try
-;            (let [discovery-config (twork/fetch-twork-discovery-config)
-;                  jwks-uri (:jwks_uri discovery-config)]
-;              (when jwks-uri
-;                (let [validation-result (validate-jwt-token token jwks-uri)]
-;                  (if (:valid validation-result)
-;                    (let [decoded-token (:decoded-token validation-result)
-;                          device-info (request.u/device-info request)
-;                          session (twork-login decoded-token device-info)
-;                          request-time (t/zoned-date-time (t/zone-id "GMT"))]
-;                      ;; Создаем ответ с cookie сессии
-;                      (let [response {:id (str (:id session))}]
-;                        (-> request
-;                            (assoc :twork-token token)
-;                            (assoc :metabase-session-id (str (:id session)))
-;                            (assoc :metabase-session-type :normal)
-;                            (assoc :metabase-user-id (:user_id session))
-;                            (assoc :twork-session-response
-;                                   (mw.session/set-session-cookies request response session request-time)))))
-;                    (do
-;                      (log/error "JWT токен невалиден:" (:error validation-result))
-;                      (assoc request :twork-token token))))))
-;            (catch Exception e
-;              (log/error e "Ошибка при получении TWork конфигурации для валидации токена")
-;              (assoc request :twork-token token)))
-;
-;          (assoc request :twork-token token))
-;        request))
-;    request))
+        (try
+          (let [response-json (json/parse-string (:body response) true)]
+            (try
+              (let [access_token (:access_token response-json)]
+                access_token)
+              (catch Exception e
+                (throw (ex-info (format "Auth returned json response without access token, status %d and data %s with text %s"
+                                        (:status response) response-json (:body response))
+                               {:type :missing-access-token}
+                               (ex-data e))))))
+          (catch com.fasterxml.jackson.core.JsonParseException e
+            (throw (ex-info (format "HRPortal returned non-JSON response with text %s" (:body response))
+                           {:type :json-parse-error}
+                           (ex-data e))))))
+      (catch Exception e
+        (throw (ex-info (format "Could not retrieve authorization token: %s" (.getMessage e))
+                       {:type :auth-failure}
+                       (ex-data e)))))))
 
-;(defn wrap-twork-token
-;  "Middleware that извлекает TWork токен из заголовка Authorization, валидирует его и создает сессию.
-;  Токен должен быть в формате 'Bearer <token>'."
-;  [handler]
-;  (fn [request respond raise]
-;    (let [request-with-token (wrap-twork-token* request)]
-;      (if (:twork-session-response request-with-token)
-;        ;; Если у нас есть ответ с сессией, возвращаем его напрямую
-;        (respond (:twork-session-response request-with-token))
-;        ;; Иначе продолжаем обработку запроса
-;        (handler request-with-token respond raise)))))
+(defn fetch-employees-by-ids [employee-master-ids]
+  (let [query "query GetEmployeesByIdList($masterIds: [Int!]!) {
+                employeesByIdList(masterIds: $masterIds) {
+                  firstName
+                  surname
+                  login
+                  workEmail
+                  masterId
+                }
+              }"
+        variables {:masterIds employee-master-ids}
+        request-data {:query query :variables variables}
+        url (twork-auth-people-hub-employee-reader-host)
+        token (fetch-people-hub-token)]
+
+    (try
+      (let [response (http/post url
+           {:body (json/generate-string request-data)
+            :headers {"Authorization" (str "Bearer " token)
+                      "Content-Type" "application/json"
+                      "Accept" "application/json"}})
+            res (json/parse-string (:body response) true)
+            employees (get-in res [:data :employeesByIdList] [])]
+
+        (for [employee employees
+              :when (:login employee)]
+          {:first-name (:firstName employee)
+           :last-name (:surname employee)
+           :login (:login employee)
+           :email (:workEmail employee)
+           :master-id (str (:masterId employee))}))
+      (catch Exception e
+        (log/error e "Unexpected error")
+        (throw e)))))
+

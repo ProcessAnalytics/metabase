@@ -120,7 +120,7 @@ PLUGIN_ADMIN_SETTINGS_UPDATES.push(
           display_name: t`PeopleHub Scope`,
           type: "string",
           defaultValue: "hrp_public_api hrp_employee_reader_public",
-          required: true,
+          required: false,
         },
         {
           key: "twork-auth-people-hub-employee-reader-host",

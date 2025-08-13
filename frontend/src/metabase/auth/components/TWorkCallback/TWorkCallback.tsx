@@ -36,7 +36,7 @@ const TWorkCallback = ({ location, router, onLogin }: TWorkCallbackProps) => {
         }
 
         const params = new URLSearchParams({ code: code }).toString();
-        const response = await fetch(`/api/twork/callback?${params}`, {
+        const response = await fetch(`/api/session/twork/auth?${params}`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -49,17 +49,10 @@ const TWorkCallback = ({ location, router, onLogin }: TWorkCallbackProps) => {
           throw new Error(errorData.message || t`Failed to process TWork callback`);
         }
 
-        const responseData = await response.json();
-        const token = responseData.token;
-
-        if (!token) {
-          throw new Error(t`No token received from TWork callback`);
-        }
-
         const returnUrl = sessionStorage.getItem("twork_return_url") || "/";
         sessionStorage.removeItem("twork_return_url");
 
-        onLogin(token, returnUrl);
+        // onLogin(token, returnUrl);
         setIsLoading(false);
 
       } catch (err) {

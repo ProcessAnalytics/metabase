@@ -25,7 +25,7 @@ const TWorkButton = ({
         setErrors([]);
         setIsLoading(true);
 
-        const response = await fetch("/api/twork/auth_url", {
+        const response = await fetch("/api/session/twork/auth_url", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
