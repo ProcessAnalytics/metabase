@@ -341,7 +341,7 @@
             (mw.session/set-session-cookies request
                                             response
                                             session
-                                            (t/zoned-date-time (t/zone-id "GMT")))
+                                            (t/zoned-date-time (t/zone-id "GMT"))))
           (throw (ex-info (str disabled-account-message)
                           {:status-code 401
                            :errors      {:account disabled-account-snippet}})))))))
