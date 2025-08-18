@@ -315,6 +315,38 @@
     {:authorization_url (:authorization_url result)}))
 
 #_{:clj-kondo/ignore [:deprecated-var]}
+(api/defendpoint-schema POST "/twork/auth"
+  "Login with TWork Connect using access token."
+  [:as {{:keys [token]} :body, :as request}]
+  {token su/NonBlankString}
+  (when-not (twork/twork-enabled?)
+    (throw (ex-info "TWork Connect is disabled." {:status-code 400})))
+
+  ;; Валидируем access token и получаем информацию о пользователе
+  (let [discovery-config (twork/fetch-twork-discovery-config)
+        jwks-uri         (:jwks_uri discovery-config)]
+    (when jwks-uri
+      (let [decoded-token (:decoded-token (twork/validate-jwt-token token jwks-uri))
+            master_id (Integer/parseInt (:master_id decoded-token))
+            people-hub-user (first (twork/fetch-employees-by-ids [master_id]))
+            user (twork/fetch-or-create-twork-user! {
+                                                      :email (:email people-hub-user)
+                                                      :first-name (:first-name people-hub-user)
+                                                      :last-name (:last-name people-hub-user)
+                                                      })]
+        ;; Создаем сессию и устанавливаем куки
+        (if (and user (:is_active user))
+          (let [{session-uuid :id, :as session} (create-session! :sso user (request.u/device-info request))
+                response {:id (str session-uuid)}]
+            (mw.session/set-session-cookies request
+                                            response
+                                            session
+                                            (t/zoned-date-time (t/zone-id "GMT")))
+          (throw (ex-info (str disabled-account-message)
+                          {:status-code 401
+                           :errors      {:account disabled-account-snippet}})))))))
+
+#_{:clj-kondo/ignore [:deprecated-var]}
 (api/defendpoint-schema GET "/twork/auth"
   [:as {{:keys [code]} :params, :as request}]
   {code (s/maybe su/NonBlankString)}
@@ -325,26 +357,20 @@
   (let [access-token     (twork/fetch-access-token code)
         discovery-config (twork/fetch-twork-discovery-config)
         jwks-uri         (:jwks_uri discovery-config)]
-  (when jwks-uri
-    (let [decoded-token (:decoded-token (twork/validate-jwt-token access-token jwks-uri))
-          master_id (Integer/parseInt (:master_id decoded-token))
-          people-hub-user (first (twork/fetch-employees-by-ids [master_id]))
-          user (twork/fetch-or-create-twork-user! {
-                                                    :email (:email people-hub-user)
-                                                    :first-name (:first-name people-hub-user)
-                                                    :last-name (:last-name people-hub-user)
-                                                    })
-          {session-uuid :id, :as session} (create-session! :sso user (request.u/device-info request))
-          response {:id (str session-uuid)}
-          ]
-          (if (and user (:is_active user))
-               (mw.session/set-session-cookies request
-                                               response
-                                               session
-                                               (t/zoned-date-time (t/zone-id "GMT")))
-               (throw (ex-info (str disabled-account-message)
-                               {:status-code 401
-                                :errors      {:account disabled-account-snippet}})))))))
+    (when jwks-uri
+      (let [decoded-token (:decoded-token (twork/validate-jwt-token access-token jwks-uri))
+            master_id (Integer/parseInt (:master_id decoded-token))
+            people-hub-user (first (twork/fetch-employees-by-ids [master_id]))
+            user (twork/fetch-or-create-twork-user! {
+                                                      :email (:email people-hub-user)
+                                                      :first-name (:first-name people-hub-user)
+                                                      :last-name (:last-name people-hub-user)
+                                                      })]
+        ;; Вместо создания сессии и установки куки, возвращаем access token
+        ;; Фронтенд будет использовать его с SessionApi.createWithTWorkAuth
+        {:access_token access-token
+         :user_id (:id user)
+         :email (:email user)}))))
 
 (defn- +log-all-request-failures [handler]
   (fn [request respond raise]

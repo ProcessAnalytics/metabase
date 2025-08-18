@@ -35,6 +35,7 @@ const TWorkCallback = ({ location, router, onLogin }: TWorkCallbackProps) => {
           throw new Error(t`Authorization code is required`);
         }
 
+        // Получаем access token через бэкенд
         const params = new URLSearchParams({ code: code }).toString();
         const response = await fetch(`/api/session/twork/auth?${params}`, {
           method: "GET",
@@ -49,10 +50,18 @@ const TWorkCallback = ({ location, router, onLogin }: TWorkCallbackProps) => {
           throw new Error(errorData.message || t`Failed to process TWork callback`);
         }
 
+        const responseData = await response.json();
+        const accessToken = responseData.access_token; // Получаем access token из ответа
+
+        if (!accessToken) {
+          throw new Error(t`No access token received from TWork`);
+        }
+
         const returnUrl = sessionStorage.getItem("twork_return_url") || "/";
         sessionStorage.removeItem("twork_return_url");
 
-        // onLogin(token, returnUrl);
+        // Используем onLogin с полученным access token
+        onLogin(accessToken, returnUrl);
         setIsLoading(false);
 
       } catch (err) {
@@ -91,26 +100,11 @@ const TWorkCallback = ({ location, router, onLogin }: TWorkCallbackProps) => {
         height: "100vh",
         flexDirection: "column"
       }}>
-        <div style={{
-          color: "red",
-          marginBottom: "1rem",
-          textAlign: "center",
-          maxWidth: "400px"
-        }}>
+        <div style={{ marginBottom: "1rem", color: "red" }}>
           {t`Authentication failed: ${error}`}
         </div>
-        <button
-          onClick={() => router.push("/auth/login")}
-          style={{
-            padding: "0.5rem 1rem",
-            backgroundColor: "#509ee3",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer"
-          }}
-        >
-          {t`Return to Login`}
+        <button onClick={() => router.push("/auth/login")}>
+          {t`Return to login`}
         </button>
       </div>
     );
